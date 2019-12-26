@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1571227600807.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2897800210",
+    "id" : "21E26C8A",
+    "lastKnownWriteTime" : 1571230277,
+    "last_content_update" : 1571230277527,
+    "path" : "~/Documents/GitHub/NCViewer/radarPlot.R",
+    "project_path" : "radarPlot.R",
+    "properties" : {
+        "cursorPosition" : "14,14",
+        "scrollLine" : "8",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

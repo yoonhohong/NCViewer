@@ -1,0 +1,207 @@
+## read ncs raw data, long format 
+
+df = read.csv("BRM_1429736_SEP_20160830.csv")
+
+devtools::install_github("ricardo-bion/ggradar", 
+                         dependencies = TRUE)
+library(ggradar)
+library(dplyr)
+library(scales)
+library(tibble)
+
+mtcars_radar <- mtcars %>% 
+  as_tibble(rownames = "group") %>% 
+  mutate_at(vars(-group), rescale) %>% 
+  tail(4) %>% 
+  select(1:10)
+
+
+
+df$side.nerve = paste(df$Side, df$Nerve, sep="_")
+df$side.nerve = factor(df$side.nerve, 
+                       levels = c("Left_Median", "Left_Ulnar", "Left_Peroneal", "Left_Tibial",
+                                  "Right_Tibial", "Right_Peroneal", "Right_Ulnar", "Right_Median"))
+o1 = order(df$side.nerve)
+df = df[o1,]
+df = tbl_df(df)
+
+# nerve view
+
+require(devtools)
+install_github('ramnathv/rCharts')
+library(rCharts)
+
+## DML 
+plot <- Highcharts$new()
+plot$chart(polar = TRUE, type = "line",height=500)
+plot$title(text="DML")
+plot$xAxis(categories=levels(df$side.nerve), 
+           tickmarkPlacement= 'on', lineWidth= 0)
+max.value = max(df[df$param == "DML",]$value, 
+                df[df$param == "DML",]$cidp_cutoff)
+max.value = (round(max.value/50)+1)*50
+tickInterval.value = round(max.value/5)
+plot$yAxis(gridLineInterpolation= 'circle', lineWidth= 0, min= 0, max=max.value,
+           endOnTick=T, tickInterval=tickInterval.value)
+plot$series(data = df[df$param == "DML",]$value, name = "Value (% of ULN)", 
+            pointPlacement="on")
+plot$series(data = df[df$param == "DML",]$cidp_cutoff, name = "Demyelingating cutoff", 
+            pointPlacement="on")
+plot
+plot$save("DML.html", standalone = T)
+
+## DUR
+plot <- Highcharts$new()
+plot$chart(polar = TRUE, type = "line",height=500)
+plot$title(text="Distal CMAP duration")
+plot$xAxis(categories=levels(df$side.nerve), tickmarkPlacement= 'on', 
+           lineWidth= 0)
+max.value = max(df[df$param == "DUR1",]$value, 
+                df[df$param == "DUR1",]$cidp_cutoff)
+max.value = (round(max.value/50)+1)*50
+tickInterval.value = round(max.value/5)
+plot$yAxis(gridLineInterpolation= 'circle', lineWidth= 0, 
+           min= 0,max=max.value,endOnTick=T,
+           tickInterval=tickInterval.value)
+plot$series(data = df[df$param == "DUR1",]$value, 
+            name = "Value (% of cutoff)", pointPlacement="on")
+plot$series(data = df[df$param == "DUR1",]$cidp_cutoff, 
+            name = "Demyelinating cutoff", pointPlacement="on")
+plot
+plot$save("DUR.html", standalone = T)
+
+## CMAP amplitude 
+plot <- Highcharts$new()
+plot$chart(polar = TRUE, type = "line",height=500)
+plot$title(text="Distal CMAP amplitude")
+plot$xAxis(categories=levels(df$side.nerve), tickmarkPlacement= 'on', 
+           lineWidth= 0)
+max.value = max(df[df$param == "CMAP1",]$value, 
+                df[df$param == "CMAP1",]$cidp_cutoff)
+max.value = (round(max.value/50)+1)*50
+tickInterval.value = round(max.value/5)
+plot$yAxis(gridLineInterpolation= 'circle', lineWidth= 0, 
+           min= 0,max=max.value,endOnTick=T,
+           tickInterval=tickInterval.value)
+plot$series(data = df[df$param == "CMAP1",]$value, 
+            name = "Value (% of LLN)", pointPlacement="on")
+plot$series(data = df[df$param == "CMAP1",]$cidp_cutoff, 
+            name = "LLN", pointPlacement="on")
+plot
+plot$save("CMAP.html", standalone = T)
+
+## NCV
+plot <- Highcharts$new()
+plot$chart(polar = TRUE, type = "line",height=500)
+plot$title(text="NCV")
+plot$xAxis(categories=levels(df$side.nerve), tickmarkPlacement= 'on', 
+           lineWidth= 0)
+max.value = max(df[df$param == "NCV1",]$value, 
+                df[df$param == "NCV1",]$cidp_cutoff)
+max.value = (round(max.value/50)+1)*50
+tickInterval.value = round(max.value/5)
+plot$yAxis(gridLineInterpolation= 'circle', lineWidth= 0, 
+           min= 0,max=max.value,endOnTick=T,
+           tickInterval=tickInterval.value)
+plot$series(data = df[df$param == "NCV1",]$value, 
+            name = "Value (% of LLN)", pointPlacement="on")
+plot$series(data = df[df$param == "NCV1",]$cidp_cutoff, 
+            name = "Demyelinating cutoff", pointPlacement="on")
+plot
+plot$save("NCV.html", standalone = T)
+
+## FL
+plot <- Highcharts$new()
+plot$chart(polar = TRUE, type = "line",height=500)
+plot$title(text="F-wave latency")
+plot$xAxis(categories=levels(df$side.nerve), tickmarkPlacement= 'on', 
+           lineWidth= 0)
+max.value = max(df[df$param == "FL",]$value, 
+                df[df$param == "FL",]$cidp_cutoff)
+max.value = (round(max.value/50)+1)*50
+tickInterval.value = round(max.value/5)
+plot$yAxis(gridLineInterpolation= 'circle', lineWidth= 0, 
+           min= 0,max=max.value,endOnTick=T,
+           tickInterval=tickInterval.value)
+plot$series(data = df[df$param == "FL",]$value, 
+            name = "Value (% of ULN)", pointPlacement="on")
+plot$series(data = df[df$param == "FL",]$cidp_cutoff, 
+            name = "Demyelinating cutoff", pointPlacement="on")
+plot
+plot$save("FL.html", standalone = T)
+
+## parameter view
+
+df_view = filter(df, param %in% c("CMAP1", "CMAP2", "DML", "DUR1", "DUR2", 
+                                  "NCV1", "FL"))
+
+df_view %>%
+  filter(side.nerve == "R.MM") %>%
+  mutate(value = scale(value)) -> R.MM
+
+df_view %>%
+  filter(side.nerve == "R.UM") %>%
+  mutate(value = scale(value)) -> R.UM
+
+df_view %>%
+  filter(side.nerve == "R.PM") %>%
+  mutate(value = scale(value)) -> R.PM
+
+df_view %>%
+  filter(side.nerve == "R.TM") %>%
+  mutate(value = scale(value)) -> R.TM
+
+df_view %>%
+  filter(side.nerve == "L.MM") %>%
+  mutate(value = scale(value)) -> L.MM
+
+df_view %>%
+  filter(side.nerve == "L.UM") %>%
+  mutate(value = scale(value)) -> L.UM
+
+df_view %>%
+  filter(side.nerve == "L.PM") %>%
+  mutate(value = scale(value)) -> L.PM
+
+df_view %>%
+  filter(side.nerve == "L.TM") %>%
+  mutate(value = scale(value)) -> L.TM
+
+df_view = rbind(L.MM, L.UM, L.PM, L.TM, R.TM, R.PM, R.UM, R.MM)
+df_view$param = factor(df_view$param, levels=c("DML", "CMAP1", "CMAP2",
+                                               "DUR1", "DUR2", 
+                                               "NCV1", "FL"))
+o2 = order(df_view$param)
+df_view = df_view[o2,]
+
+plot <- Highcharts$new()
+plot$chart(polar = TRUE, type = "line",height=500)
+plot$title(text="parameter view")
+plot$xAxis(categories=levels(df_view$param), tickmarkPlacement= 'on', 
+           lineWidth= 0)
+max.value = max(df_view$value)
+max.value = (round(max.value/50)+1)*50
+tickInterval.value = round(max.value/5)
+plot$yAxis(gridLineInterpolation= 'circle', lineWidth= 0, 
+           endOnTick=T,
+           tickInterval=tickInterval.value)
+plot$series(data = df_view[df_view$side.nerve == "L.MM",]$value, 
+            name = "L.MM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "L.UM",]$value, 
+            name = "L.UM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "L.PM",]$value, 
+            name = "L.PM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "L.TM",]$value, 
+            name = "L.TM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "R.MM",]$value, 
+            name = "R.MM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "R.UM",]$value, 
+            name = "R.UM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "R.PM",]$value, 
+            name = "R.PM", pointPlacement="on")
+plot$series(data = df_view[df_view$side.nerve == "R.TM",]$value, 
+            name = "R.TM", pointPlacement="on")
+plot
+
+
+# The End # 
