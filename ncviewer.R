@@ -20,6 +20,7 @@ library(dplyr)
 library(tidyr)
 library(plotly)
 
+
 ui <- fluidPage(
   titlePanel("NCViewer"),
   sidebarLayout(
@@ -69,8 +70,8 @@ server <- function(input, output) {
     # type conversion: chr to factor
       mutate(side.nerve = factor(side.nerve, 
                            levels = 
-                             c("L.MM", "L.UM", "L.PM", "L.TM", 
-                               "R.TM", "R.PM", "R.UM", "R.MM"))) %>%
+                             c("R.MM", "R.UM", "L.MM", "L.UM", 
+                               "R.TM", "R.PM", "L.TM", "L.PM"))) %>%
       mutate(param = factor(param, 
                       levels = c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
                                  "DML", "Dur1", "Dur2", "Dur3", "Dur4",
@@ -83,11 +84,18 @@ server <- function(input, output) {
     df_tab
   })
   
+  brks <- quantile(c(0,200), probs = seq(.05, .95, .05), na.rm = TRUE)
+  clrs <- colorRampPalette(c("green", "white", "red"))(20)
+  
   output$ncsTable <- renderDT({
     if (is.null(df_tab())) return(NULL)
-    df_tab()
-    }, rownames = F, 
-    options = list(pageLength = 13))
+    datatable(df_tab(), options = list(pageLength = 13)) %>%
+      formatStyle(names(df_tab()), 
+                  background = styleColorBar(c(0,200), "lightblue"),
+                  backgroundSize = '98% 88%',
+                  backgroundRepeat = 'no-repeat',
+                  backgroundPosition = 'center')
+    }, rownames = F)
   
   df_view = reactive({
     if (is.null(df_tab())) return(NULL)
