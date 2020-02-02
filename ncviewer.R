@@ -19,6 +19,7 @@ library(DT)
 library(dplyr)
 library(tidyr)
 library(plotly)
+library(ggplot2)
 
 
 ui <- fluidPage(
@@ -36,9 +37,9 @@ ui <- fluidPage(
       ), 
     mainPanel(
       tabsetPanel(
-        tabPanel("Table", br(), DTOutput("ncsTable")), 
-        tabPanel("Parameter view", br(), plotlyOutput("paramView")), 
-        tabPanel("Nerve view", br(), plotlyOutput("nerveView"))
+        tabPanel("Tile view", br(), plotOutput("tileView")), 
+        tabPanel("Parameter view", br(), br(), plotlyOutput("paramView")), 
+        tabPanel("Nerve view", br(), br(), plotlyOutput("nerveView"))
       )
     )
   )
@@ -56,61 +57,82 @@ server <- function(input, output) {
       input_file() %>% select(Hosp, ID, Name, Date)  
     }, rownames = F, , selection = "single")
   
-  df_tab = reactive({
-    s = input$ptTable_rows_selected
-    if (length(s) == 0) return(NULL)
-    df_selected = input_file()[s,] %>%
+  df_selected = reactive({
+    if (length(input$ptTable_rows_selected) == 0) return(NULL)
+    df_selected = input_file()[input$ptTable_rows_selected,]
+    df_selected
+    })
+  
+  
+  df_tab_all = reactive({
+    if (is.null(df_selected())) return(NULL)
+    tab = df_selected() %>%
       gather(key = "side.nerve.param", 
              value = "value", R.MM.DML:L.TM.FL) %>%
-    # split side.nerve.param into side.nerve and param
       separate(side.nerve.param, 
                into = c("side", "nerve", "param"), 
                sep = "\\.") %>%
       mutate(side.nerve = paste(side, nerve, sep=".")) %>%
-    # type conversion: chr to factor
       mutate(side.nerve = factor(side.nerve, 
                            levels = 
-                             c("R.MM", "R.UM", "L.MM", "L.UM", 
-                               "R.TM", "R.PM", "L.TM", "L.PM"))) %>%
+                             c("R.MM", "R.UM", "R.PM", "R.TM", 
+                               "L.TM", "L.PM", "L.UM", "L.MM"))) %>%
+      filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4",  
+                          "DML", "Dur1", "Dur2", "Dur3", "Dur4",
+                          "NCV1", "NCV2", "NCV3", "FL")) %>%
       mutate(param = factor(param, 
                       levels = c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
-                                 "DML", "Dur1", "Dur2", "Dur3", "Dur4",
-                                 "NCV1", "NCV2", "NCV3", "FL")))
-    # ncs data table 
-    df_tab = df_selected %>% 
-      select(side.nerve, param, value) %>% 
-      spread(key = side.nerve, value = value) %>% 
-      select_if(function(x){!all(is.na(x))})
-    df_tab
+                                 "DML", "Dur1", "Dur2", "Dur3", "Dur4", 
+                                 "NCV1", "NCV2", "NCV3", "FL"))) %>%
+      select(side.nerve, param, value)
+
+    tab_A = tab %>%
+      filter(param %in% c("DML", "Dur1", "Dur2", "Dur3", "Dur4", "FL")) %>%
+      mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL"))
+    
+    tab_B = tab %>%
+      filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
+                          "NCV1", "NCV2", "NCV3")) %>%
+      mutate(cutoff = ifelse(value < 100, "Below LLN", "WNL"))
+    
+    tab_all = rbind(tab_A, tab_B)
+    tab_all
   })
   
-  brks <- quantile(c(0,200), probs = seq(.05, .95, .05), na.rm = TRUE)
-  clrs <- colorRampPalette(c("green", "white", "red"))(20)
-  
-  output$ncsTable <- renderDT({
-    if (is.null(df_tab())) return(NULL)
-    datatable(df_tab(), options = list(pageLength = 13)) %>%
-      formatStyle(names(df_tab()), 
-                  background = styleColorBar(c(0,200), "lightblue"),
-                  backgroundSize = '98% 88%',
-                  backgroundRepeat = 'no-repeat',
-                  backgroundPosition = 'center')
-    }, rownames = F)
-  
-  df_view = reactive({
-    if (is.null(df_tab())) return(NULL)
-    df_view = df_tab() %>%
-      gather(key = "side.nerve", value = "value", 
-                     colnames(df_tab())[-1], factor_key = T) %>%
-      filter(param %in% c("CMAP1", "CMAP2", "DML", 
-                          "DUR1", "DUR2", 
-                         "NCV1", "FL")) %>%
-      mutate(param = factor(param))
-    df_view
+  output$tileView = renderPlot({
+    if (is.null(df_tab_all())) return(NULL)
+    p <- ggplot(df_tab_all(), aes(x=side.nerve, y=param, 
+                                   fill = factor(cutoff))) + 
+      geom_tile(color = "black") + 
+      scale_fill_manual(values = c("red", "green", "white"), 
+                        name = "") + 
+      geom_text(aes(label = value), size = 8) + theme_minimal() + 
+      theme(axis.text.x = element_text(size = 16, face = "bold"), 
+            axis.text.y = element_text(size = 16, face = "bold"), 
+            axis.title.x = element_blank(), 
+            axis.title.y = element_blank(), 
+            legend.text = element_text(size = 16, face = "bold"))
+    p
   })
   
+  df_tab_radial = reactive({
+    if (is.null(df_tab_all())) return(NULL)
+    tab_radial <- df_tab_all() %>%
+      group_by(side.nerve) %>%
+      mutate(all_na = all(is.na(value))) %>%
+      filter(all_na == F) 
+    tab_radial <- data.frame(tab_radial) %>%
+      filter(param %in% c("CMAP1", "CMAP2",  
+                          "DML", "Dur1", "Dur2",
+                          "NCV1", "FL")) %>%
+      mutate(param = factor(param)) %>%
+      mutate(side.nerve = factor(side.nerve))
+    tab_radial
+  })
+  
+  # paramView; angular axis = parameter, category = nerve
   output$paramView = renderPlotly({
-    if (is.null(df_view())) return(NULL)
+    if (is.null(df_tab_radial())) return(NULL)
     p <- plot_ly(
       type = 'scatterpolar',
       mode = "lines+markers+texts",
@@ -122,7 +144,7 @@ server <- function(input, output) {
           radialaxis = list(
             visible = T,
             range = c(0, (round(
-              max(df_view()$value, na.rm = T)/50)+1)*50)
+              max(df_tab_radial()$value, na.rm = T)/50)+1)*50)
             ), 
           angularaxis = list(
             tickfont = list(size = 20)
@@ -130,20 +152,22 @@ server <- function(input, output) {
           ),
         legend = list(font = list(size = 20), x = 100, y = 0.5)
       )
-    for (i in 1:length(levels(df_view()$side.nerve))) {
-      temp = df_view() %>%
-        filter(side.nerve == levels(df_view()$side.nerve)[i]) %>%
+    for (i in 1:length(levels(df_tab_radial()$side.nerve))) {
+      temp = df_tab_radial() %>%
+        filter(side.nerve == levels(df_tab_radial()$side.nerve)[i]) %>%
         select(param, value)
+      temp = temp[order(temp$param),]
       p <- p %>% add_trace(
         r = c(temp[,2],temp[1,2]), # r: values in r-axes
         theta = c(as.character(temp[,1]), as.character(temp[1,1])),# theta: levels of r-axes
-        name = levels(df_view()$side.nerve)[i] # name: record name 
+        name = levels(df_tab_radial()$side.nerve)[i] # name: record name 
       )}  
     p
   })
 
+# nerveView; angular axis = nerve, category = parameter 
   output$nerveView = renderPlotly({
-    if (is.null(df_view())) return(NULL)
+    if (is.null(df_tab_radial())) return(NULL)
     p <- plot_ly(
       type = 'scatterpolar',
       mode = "lines+markers+texts",
@@ -155,7 +179,7 @@ server <- function(input, output) {
           radialaxis = list(
             visible = T,
             range = c(0, (round(
-              max(df_view()$value, na.rm = T)/50)+1)*50)
+              max(df_tab_radial()$value, na.rm = T)/50)+1)*50)
           ), 
           angularaxis = list(
             tickfont = list(size = 20)
@@ -163,14 +187,15 @@ server <- function(input, output) {
         ),
         legend = list(font = list(size = 20), x = 100, y = 0.5)
       )
-    for (i in 1:length(levels(df_view()$param))) {
-      temp = df_view() %>%
-        filter(param == levels(df_view()$param)[i]) %>%
+    for (i in 1:length(levels(df_tab_radial()$param))) {
+      temp = df_tab_radial() %>%
+        filter(param == levels(df_tab_radial()$param)[i]) %>%
         select(side.nerve, value)
+      temp = temp[order(temp$side.nerve),]
       p <- p %>% add_trace(
         r = c(temp[,2],temp[1,2]), # r: values in r-axes
         theta = c(as.character(temp[,1]), as.character(temp[1,1])),# theta: levels of r-axes
-        name = levels(df_view()$param)[i] # name: record name 
+        name = levels(df_tab_radial()$param)[i] # name: record name 
       )}  
     p
   })
