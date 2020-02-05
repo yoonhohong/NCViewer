@@ -124,20 +124,31 @@ server <- function(input, output) {
   
   output$tileView = renderPlot({
     if (is.null(df_tab_all())) return(NULL)
+    
     temp = df_tab_all() %>%
       group_by(side.nerve) %>%
       filter(!all(is.na(value)))
-    p <- ggplot(temp, aes(x=factor(side.nerve), y=factor(param), 
-                                   fill = factor(cutoff))) + 
+    
+    temp$cutoff = factor(temp$cutoff)
+    
+    p <- ggplot(temp, aes(x=side.nerve, y=param, 
+                          fill = cutoff)) + 
       geom_tile(color = "black") + 
-      scale_fill_manual(values = c("red", "green", "black", "grey"), 
-                        name = "") + 
       geom_text(aes(label = value), size = 8) + theme_minimal() + 
       theme(axis.text.x = element_text(size = 16, face = "bold"), 
             axis.text.y = element_text(size = 16, face = "bold"), 
             axis.title.x = element_blank(), 
             axis.title.y = element_blank(), 
+            panel.grid = element_blank(),
             legend.text = element_text(size = 16, face = "bold"))
+    
+    if (length(levels(temp$cutoff)) == 4) {
+      p <- p + scale_fill_manual(values = c("red", "green", "black", "grey"), 
+                                 name = "")
+    } else {
+      p <- p + scale_fill_manual(values = c("red", "green", "grey"), 
+                                 name = "")
+    } 
     p
   })
   
