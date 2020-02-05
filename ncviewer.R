@@ -14,13 +14,17 @@ if (!requireNamespace("plotly")){
   install.packages("plotly")
 }
 
+if (!requireNamespace("mgcv")){
+  install.packages("mgcv")
+}
+
 library(shiny)
 library(DT)
 library(dplyr)
 library(tidyr)
 library(plotly)
 library(ggplot2)
-
+library(mgcv)
 
 ui <- fluidPage(
   titlePanel("NCViewer"),

@@ -1,0 +1,13 @@
+name: NCViewer
+title: NCViewer
+username:
+account: yoonhohong
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1322121
+bundleId: 2773333
+url: https://yoonhohong.shinyapps.io/ncviewer/
+when: 1580792134.74355
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: 2020 NCS DATA ver1.1.xlsx|all_wide_appended_modified.csv|BRM_01429736_SEP_fu.csv|BRM_1429736_SEP_20160830.csv|NCS 입력 ver1.1.xlsx|parameters.txt|radial_plot.R|reference_ncs.csv|serialPlot.R
