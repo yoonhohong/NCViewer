@@ -1,6 +1,11 @@
 if (!requireNamespace("shiny")){
   install.packages("shiny")
 }
+
+if (!requireNamespace("readxl")){
+  install.packages("readxl")
+}
+
 if (!requireNamespace("DT")){
   install.packages("DT")
 }
@@ -19,6 +24,7 @@ if (!requireNamespace("mgcv")){
 }
 
 library(shiny)
+library(readxl)
 library(DT)
 library(dplyr)
 library(tidyr)
@@ -31,11 +37,8 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       fileInput(inputId = "ncsfile", 
-                label = "Choose NCS File (csv format)",
-                multiple = FALSE,
-                accept = c("text/csv",
-                           "text/comma-separated-values,text/plain",
-                           ".csv")),
+                label = "Choose NCS File",
+                accept = c(".xlsx")),
       hr(),
       DTOutput(outputId = "ptTable")
       ), 
@@ -52,21 +55,32 @@ ui <- fluidPage(
 server <- function(input, output) {
   
   input_file = reactive({
-    if (is.null(input$ncsfile)) return(NULL)
-    read.csv(input$ncsfile$datapath)
+    inFile = input$ncsfile
+    
+    if (is.null(inFile)) 
+      return(NULL)
+    
+    ext <- tools::file_ext(inFile$name)
+    file.rename(inFile$datapath,
+                paste(inFile$datapath, ext, sep="."))
+    read_excel(paste(inFile$datapath, ext, sep = "."), sheet = 1, 
+               col_types = c(rep("text", 5), 
+                             rep("numeric", 113)))
   })
     
   output$ptTable <- renderDT({
     if (is.null(input_file())) return(NULL)
-      input_file() %>% select(Hosp, ID, Name, Date)  
+    input_file() %>% 
+      mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>%
+      select(Hosp, ID, Name, Date)
     }, rownames = F, , selection = "single")
   
   df_selected = reactive({
     if (length(input$ptTable_rows_selected) == 0) return(NULL)
     df_selected = input_file()[input$ptTable_rows_selected,]
-    df_selected
+    df_selected <- df_selected %>%
+      mutate_if(is.numeric, as.integer)
     })
-  
   
   df_tab_all = reactive({
     if (is.null(df_selected())) return(NULL)
@@ -91,24 +105,32 @@ server <- function(input, output) {
       select(side.nerve, param, value)
 
     tab_A = tab %>%
-      filter(param %in% c("DML", "Dur1", "Dur2", "Dur3", "Dur4", "FL")) %>%
+      filter(param %in% c("DML", "Dur1", "Dur2", "Dur3", "Dur4")) %>%
       mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL"))
     
     tab_B = tab %>%
+      filter(param == "FL") %>%
+      mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL")) %>%
+      mutate(cutoff = ifelse(is.na(value), "Not elicited", cutoff))
+    
+    tab_C = tab %>%
       filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
                           "NCV1", "NCV2", "NCV3")) %>%
       mutate(cutoff = ifelse(value < 100, "Below LLN", "WNL"))
     
-    tab_all = rbind(tab_A, tab_B)
+    tab_all = rbind(tab_A, tab_B, tab_C)
     tab_all
   })
   
   output$tileView = renderPlot({
     if (is.null(df_tab_all())) return(NULL)
-    p <- ggplot(df_tab_all(), aes(x=side.nerve, y=param, 
+    temp = df_tab_all() %>%
+      group_by(side.nerve) %>%
+      filter(!all(is.na(value)))
+    p <- ggplot(temp, aes(x=factor(side.nerve), y=factor(param), 
                                    fill = factor(cutoff))) + 
       geom_tile(color = "black") + 
-      scale_fill_manual(values = c("red", "green", "white"), 
+      scale_fill_manual(values = c("red", "green", "black", "grey"), 
                         name = "") + 
       geom_text(aes(label = value), size = 8) + theme_minimal() + 
       theme(axis.text.x = element_text(size = 16, face = "bold"), 
