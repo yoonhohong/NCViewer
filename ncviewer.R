@@ -140,15 +140,12 @@ server <- function(input, output) {
             axis.title.x = element_blank(), 
             axis.title.y = element_blank(), 
             panel.grid = element_blank(),
-            legend.text = element_text(size = 16, face = "bold"))
-    
-    if (length(levels(temp$cutoff)) == 4) {
-      p <- p + scale_fill_manual(values = c("red", "green", "black", "grey"), 
+            legend.text = element_text(size = 16, face = "bold")) + 
+      scale_fill_manual(values = c("Above ULN" = "red", 
+                                            "Below LLN" = "green", 
+                                            "Not elicited" = "black", 
+                                            "WNL" = "grey"), 
                                  name = "")
-    } else {
-      p <- p + scale_fill_manual(values = c("red", "green", "grey"), 
-                                 name = "")
-    } 
     p
   })
   

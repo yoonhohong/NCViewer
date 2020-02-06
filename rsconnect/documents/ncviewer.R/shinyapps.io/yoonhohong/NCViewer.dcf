@@ -5,9 +5,9 @@ account: yoonhohong
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1322121
-bundleId: 2775873
+bundleId: 2775999
 url: https://yoonhohong.shinyapps.io/ncviewer/
-when: 1580884614.49564
+when: 1580888881.46797
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: BRM_01429736_SEP_fu.csv|BRM_1429736_SEP_20160830.csv|parameters.txt|radial_plot.R|reference_ncs.csv|serialPlot.R|NCSdata/all_wide_appended_modified.xlsx|NCSdata/Input_NCSdata_ver1.1.xlsx
+ignoredFiles: global.R|serialPlot.R|NCSdata/BRM_GBS_NCS_2010_2017.xlsx|NCSdata/Input_NCSdata_ver1.1.xlsx|NCSdata/Wformat_NCSdata_ver1.1.xlsx
