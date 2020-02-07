@@ -1,6 +1,7 @@
 library(readxl)
 setwd("/Users/hong/Documents/GitHub/NCViewer/NCSdata")
-df = read_excel("BRM_GBS_NCS_2010_2017.xlsx", sheet = 1,col_types = c(rep("text", 5), 
+df = read_excel("2020 NCS DATA ver1.1.xlsx", sheet = 1, 
+                col_types = c("text", "date", rep("text", 3), 
                            rep("numeric", 113)))
 
 ptTable = df %>% 
@@ -11,9 +12,9 @@ df_selected = df[1,] %>%
     mutate_if(is.numeric, as.integer)
 
 
-tab = df_selected %>%
+tab_motor = df_selected %>%
     gather(key = "side.nerve.param", 
-           value = "value", R.MM.DML:L.TM.FL) %>%
+           value = "value", c(R.MM.DML:R.TM.FL, L.MM.DML:L.TM.FL)) %>%
     separate(side.nerve.param, 
              into = c("side", "nerve", "param"), 
              sep = "\\.") %>%
@@ -31,28 +32,29 @@ tab = df_selected %>%
                                      "NCV1", "NCV2", "NCV3", "FL"))) %>%
     select(side.nerve, param, value)
   
-tab_A = tab %>%
+tab_motor_A = tab_motor %>%
     filter(param %in% c("DML", "Dur1", "Dur2", "Dur3", "Dur4")) %>%
     mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL"))
   
-tab_B = tab %>%
+tab_motor_B = tab_motor %>%
     filter(param == "FL") %>%
     mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL")) %>%
     mutate(cutoff = ifelse(is.na(value), "Not elicited", cutoff))
   
-tab_C = tab %>%
+tab_motor_C = tab_motor %>%
     filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
                         "NCV1", "NCV2", "NCV3")) %>%
     mutate(cutoff = ifelse(value < 100, "Below LLN", "WNL"))
   
-tab_all = rbind(tab_A, tab_B, tab_C)
-tab_all
+tab_motor_all = rbind(tab_motor_A, tab_motor_B, tab_motor_C)
+tab_motor_all
 
-temp = tab_all %>%
+temp = tab_motor_all %>%
   group_by(side.nerve) %>%
   filter(!all(is.na(value))) 
 
 temp$cutoff = factor(temp$cutoff)
+
 
 p <- ggplot(temp, aes(x=side.nerve, y=param, 
                       fill = cutoff)) + 
