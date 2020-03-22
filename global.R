@@ -19,8 +19,8 @@ ptTable = df %>%
     mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>%
     select(Hosp, ID, Name, Date)
 
-# df_selected = df[1,] %>%
-#     mutate_if(is.numeric, as.integer)
+df_selected = df[1,] %>%
+    mutate_if(is.numeric, as.integer)
 
 df_selected = df %>%
   filter(ID == "1456214")
@@ -45,7 +45,6 @@ tab_motor = df_selected %>%
                                      "NCV1", "NCV2", "NCV3", "FL"))) %>%
     select(Date, side.nerve, param, value)
 
-  
 tab_motor_A = tab_motor %>%
     filter(param %in% c("DML", "Dur1", "Dur2", "Dur3", "Dur4")) %>%
     mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL"))
@@ -64,37 +63,10 @@ tab_motor_all = rbind(tab_motor_A, tab_motor_B, tab_motor_C)
 df_motor_all = tab_motor_all
 
 # tile view 
-temp = df_motor_all %>%
-  group_by(side.nerve) %>%
-  filter(!all(is.na(value))) 
-temp$cutoff = factor(temp$cutoff)
-p <- ggplot(temp, aes(x=side.nerve, y=param, 
-                      fill = cutoff)) + 
-  geom_tile(color = "black") + 
-  geom_text(aes(label = value), size = 8) + theme_minimal() + 
-  theme(axis.text.x = element_text(size = 16, face = "bold"), 
-        axis.text.y = element_text(size = 16, face = "bold"), 
-        axis.title.x = element_blank(), 
-        axis.title.y = element_blank(), 
-        panel.grid = element_blank(),
-        plot.background = element_blank(),
-        legend.text = element_text(size = 16, face = "bold"))
-
-if (length(levels(temp$cutoff)) == 4) {
-  p <- p + scale_fill_manual(values = c("red", "green", "black", "grey"), 
-                             name = "")
-} else {
-  p <- p + scale_fill_manual(values = c("red", "green", "grey"), 
-                             name = "")
-} 
-p
 
 # Parameter View; angular axis = parameter, category = nerve
 
 motor_radial <- df_motor_all 
-
-
-
 motor_radial <- data.frame(motor_radial) %>%
   filter(param %in% c("CMAP1", "CMAP2",  
                       "DML", "Dur1", "Dur2",
@@ -151,89 +123,6 @@ df_motor_radial %>%
   lay()
 
 
-spg_plot_param = . %>%
-  plot_ly(x = ~Date, y = ~value, color = ~param, 
-          legendgroup = ~param, 
-          colors = "Dark2") %>%
-  add_lines(name = ~param, showlegend = F) %>%
-  add_markers(showlegend = F) %>%
-  add_annotations(
-    text = ~unique(side.nerve),
-    x = 0.5,
-    y = 1,
-    yref = "paper",
-    xref = "paper",
-    xanchor = "middle",
-    yanchor = "top",
-    showarrow = FALSE,
-    font = list(size = 15)
-  ) %>%
-  layout(
-    xaxis = list(
-      showgrid = T
-    ),
-    yaxis = list(
-      showgrid = T
-    ), 
-    shapes=list(type='line', x0= 0, x1= max(.$Date), 
-                y0=100, y1=100, 
-                line=list(dash='dot', width=1)))
-
-df_motor_radial_temp = df_motor_radial %>%
-  group_by(side.nerve) %>%
-  mutate(all_na = all(is.na(value))) %>%
-  filter(all_na == F) 
-
-df_motor_radial_temp$side.nerve = factor(df_motor_radial_temp$side.nerve)
-
-
-len_nerve = length(levels(df_motor_radial_temp$side.nerve))
-len_param = length(levels(df_motor_radial_temp$param))
-
-p = df_motor_radial_temp %>%
-  group_by(side.nerve) %>%
-  do(p = spg_plot_param(.)) %>%
-  subplot(nrows = round(len_nerve/3), shareY = T, shareX = T, 
-          titleX = F, titleY = T) 
-p1 = style(p, traces = 1:len_param, showlegend = T)
-layout(p1, legend = list(font = list(size = 15)))
-
-spg_plot_nerve = . %>%
-  plot_ly(x = ~Date, y = ~value, color = ~side.nerve, 
-          legendgroup = ~side.nerve, 
-          colors = "Dark2") %>%
-  add_lines(name = ~side.nerve, showlegend = F) %>%
-  add_markers(showlegend = F) %>%
-  add_annotations(
-    text = ~unique(param),
-    x = 0.5,
-    y = 1,
-    yref = "paper",
-    xref = "paper",
-    xanchor = "middle",
-    yanchor = "top",
-    showarrow = FALSE,
-    font = list(size = 15)
-  ) %>%
-  layout(
-    xaxis = list(
-      showgrid = T
-    ),
-    yaxis = list(
-      showgrid = T
-    ), 
-    shapes=list(type='line', x0= 0, x1= max(.$Date), 
-                y0=100, y1=100, 
-                line=list(dash='dot', width=1)))
-
-p = df_motor_radial %>%
-  group_by(param) %>%
-  do(p = spg_plot_nerve(.)) %>%
-  subplot(nrows = round(len_param/3), shareY = T, shareX = T, 
-          titleX = F, titleY = T)
-p1 = style(p, traces = 1:len_nerve, showlegend = T)
-layout(p1, legend = list(font = list(size = 15)))
-      
 # Hadden's criteria 
 
 df = df_motor_radial %>%
@@ -321,10 +210,6 @@ p <- p + scale_fill_manual(
 p
 
 # CIDP 
-
-
-
-
 
 
 
