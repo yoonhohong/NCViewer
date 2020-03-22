@@ -164,55 +164,26 @@ server <- function(input, output) {
     motor_radial
   })
   
-  # paramView; angular axis = parameter, category = nerve
+  # parameter View; angular axis = parameter, category = nerve
   output$paramView = renderPlotly({
     if (is.null(df_motor_radial())) return(NULL)
-    p <- plot_ly(
-      type = 'scatterpolar',
-      mode = "lines+markers+texts",
-      fill = 'none'
-    ) 
-    p <- p %>%
+    p <- df_motor_radial() %>%
+      group_by(side.nerve) %>%
+      arrange(param) %>%
+      plot_ly(type = 'scatterpolar') %>%
+      add_trace(r = ~value, 
+                theta = ~param, 
+                name = ~side.nerve,
+                mode = 'lines+markers') %>%
+      add_trace(r = 100, 
+                theta = ~param, 
+                name = "ULN(LLN)", 
+                line = list(dash = "dot")) %>%
       layout(
         polar = list(
           radialaxis = list(
             visible = T,
-            range = c(0, (round(
-              max(df_motor_radial()$value, na.rm = T)/50)+1)*50)
-            ), 
-          angularaxis = list(
-            tickfont = list(size = 20)
-            )
-          ),
-        legend = list(font = list(size = 20), x = 100, y = 0.5)
-      )
-    for (i in 1:length(levels(df_motor_radial()$side.nerve))) {
-      temp = df_motor_radial() %>%
-        filter(side.nerve == levels(df_motor_radial()$side.nerve)[i]) %>%
-        select(param, value)
-      temp = temp[order(temp$param),]
-      p <- p %>% add_trace(
-        r = c(temp[,2],temp[1,2]), # r: values in r-axes
-        theta = c(as.character(temp[,1]), as.character(temp[1,1])),# theta: levels of r-axes
-        name = levels(df_motor_radial()$side.nerve)[i] # name: record name 
-      )}  
-    p
-  })
-
-# nerveView; angular axis = nerve, category = parameter 
-  output$nerveView = renderPlotly({
-    if (is.null(df_motor_radial())) return(NULL)
-    p <- plot_ly(
-      type = 'scatterpolar',
-      mode = "lines+markers+texts",
-      fill = 'none'
-    ) 
-    p <- p %>%
-      layout(
-        polar = list(
-          radialaxis = list(
-            visible = T,
-            range = c(0, (round(
+            range = c(-50, (round(
               max(df_motor_radial()$value, na.rm = T)/50)+1)*50)
           ), 
           angularaxis = list(
@@ -221,16 +192,37 @@ server <- function(input, output) {
         ),
         legend = list(font = list(size = 20), x = 100, y = 0.5)
       )
-    for (i in 1:length(levels(df_motor_radial()$param))) {
-      temp = df_motor_radial() %>%
-        filter(param == levels(df_motor_radial()$param)[i]) %>%
-        select(side.nerve, value)
-      temp = temp[order(temp$side.nerve),]
-      p <- p %>% add_trace(
-        r = c(temp[,2],temp[1,2]), # r: values in r-axes
-        theta = c(as.character(temp[,1]), as.character(temp[1,1])),# theta: levels of r-axes
-        name = levels(df_motor_radial()$param)[i] # name: record name 
-      )}  
+    p
+  })
+
+# nerve View; angular axis = nerve, category = parameter 
+  output$nerveView = renderPlotly({
+    if (is.null(df_motor_radial())) return(NULL)
+    p <- df_motor_radial() %>%
+      group_by(param) %>%
+      arrange(side.nerve) %>%
+      plot_ly(type = 'scatterpolar') %>%
+      add_trace(r = ~value, 
+                theta = ~side.nerve, 
+                name = ~param, 
+                mode = 'lines+markers') %>%
+      add_trace(r = 100, 
+                theta = ~side.nerve, 
+                name = "ULN(LLN)",
+                line = list(dash = 'dot'))  %>%
+      layout(
+        polar = list(
+          radialaxis = list(
+            visible = T,
+            range = c(-50, (round(
+              max(df_motor_radial()$value, na.rm = T)/50)+1)*50)
+          ), 
+          angularaxis = list(
+            tickfont = list(size = 20)
+          )
+        ),
+        legend = list(font = list(size = 20), x = 100, y = 0.5)
+      )
     p
   })
 }
