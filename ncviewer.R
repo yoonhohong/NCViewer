@@ -73,8 +73,12 @@ ui <- fluidPage(
         tabPanel("Tile view", br(), plotOutput("tileView")), 
         tabPanel("Parameter view", br(), br(), plotlyOutput("paramView")), 
         tabPanel("Nerve view", br(), br(), plotlyOutput("nerveView")), 
-        tabPanel("FU view", br(), br(),
-                 plotlyOutput("fuview"))
+        tabPanel("FU view", br(), 
+                 DTOutput(outputId = "dateTable"), br(),
+                 plotlyOutput("fuview")), 
+        tabPanel("GBS criteria sets", br(), 
+                 plotOutput("hadden_tileView")
+                 )
       )
     )
   )
@@ -113,9 +117,9 @@ server <- function(input, output) {
     })
 
   
-  df_motor_all = reactive({
+  df_motor = reactive({
     if (is.null(df_selected())) return(NULL)
-    tab_motor = df_selected() %>%
+    df_motor = df_selected() %>%
       gather(key = "side.nerve.param", 
              value = "value", c(R.MM.DML:R.TM.FL, L.MM.DML:L.TM.FL)) %>%
       separate(side.nerve.param, 
@@ -125,45 +129,42 @@ server <- function(input, output) {
       mutate(side.nerve = factor(side.nerve, 
                            levels = 
                              c("R.MM", "R.UM", "R.PM", "R.TM", 
-                               "L.TM", "L.PM", "L.UM", "L.MM"))) %>%
+                               "L.TM", "L.PM", "L.UM", "L.MM"))) 
+    df_motor
+    })
+  
+  df_motor_all = reactive({
+    if (is.null(df_motor())) return(NULL)
+    df_motor_all = df_motor() %>%
       filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4",  
                           "DML", "Dur1", "Dur2", "Dur3", "Dur4",
                           "NCV1", "NCV2", "NCV3", "FL")) %>%
       mutate(param = factor(param, 
-                      levels = c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
-                                 "DML", "Dur1", "Dur2", "Dur3", "Dur4", 
-                                 "NCV1", "NCV2", "NCV3", "FL"))) %>%
+                            levels = c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
+                                       "DML", "Dur1", "Dur2", "Dur3", "Dur4", 
+                                       "NCV1", "NCV2", "NCV3", "FL"))) %>%
       select(side.nerve, param, value)
-
-    tab_motor_A = tab_motor %>%
+    df_motor_A = df_motor_all %>%
       filter(param %in% c("DML", "Dur1", "Dur2", "Dur3", "Dur4")) %>%
       mutate(cutoff = ifelse(is.na(value), NA, value)) %>%
       mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL"))
-    
-    tab_motor_B = tab_motor %>%
+    df_motor_B = df_motor_all %>%
       filter(param == "FL") %>%
       mutate(cutoff = ifelse(is.na(value), NA, value)) %>%
       mutate(cutoff = ifelse(value > 100, "Above ULN", "WNL"))
-
-    tab_motor_C = tab_motor %>%
+    df_motor_C = df_motor_all %>%
       filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
                           "NCV1", "NCV2", "NCV3")) %>%
       mutate(cutoff = ifelse(is.na(value), NA, value)) %>%
       mutate(cutoff = ifelse(value < 100, "Below LLN", "WNL"))
-    
-    tab_motor_all = rbind(tab_motor_A, tab_motor_B, tab_motor_C)
-    tab_motor_all
+    df_motor_all = rbind(df_motor_A, df_motor_B, df_motor_C)
+    df_motor_all
   })
-  
+    
   output$tileView = renderPlot({
     if (is.null(df_motor_all())) return(NULL) 
     temp = df_motor_all() 
-    # %>%
-    #   group_by(side.nerve) %>%
-    #   filter(!all(is.na(value)))
-    # 
     temp$cutoff = factor(temp$cutoff)
-    
     p <- ggplot(temp, aes(x=factor(side.nerve), y=param, 
                           fill = cutoff)) + 
       geom_tile(color = "black") + 
@@ -186,10 +187,6 @@ server <- function(input, output) {
   df_motor_radial = reactive({
     if (is.null(df_motor_all())) return(NULL) 
     motor_radial <- df_motor_all() 
-    # %>%
-    #   group_by(side.nerve) %>%
-    #   mutate(all_na = all(is.na(value))) %>%
-    #   filter(all_na == F) 
     motor_radial <- data.frame(motor_radial) %>%
       filter(param %in% c("CMAP1", "CMAP2",  
                           "DML", "Dur1", "Dur2",
@@ -292,17 +289,120 @@ server <- function(input, output) {
     fu_selected$side.nerve = factor(fu_selected$side.nerve)
     fu_selected
   })
-    
+  
+  df_date = reactive({
+    if (is.null(fu_selected())) return(NULL) 
+    df_date = data.frame(date = sort(unique(fu_selected()$Date)))
+    df_date
+  })
+  
+  output$dateTable <- renderDT({
+    if (is.null(df_date())) return(NULL) 
+    df_date()
+  }, rownames = T, selection = "multiple", options = list(
+    pageLength = 5))  
+  
   output$fuview = renderPlotly({
-    if (is.null(df_selected())) return(NULL)
-    p = fu_selected() %>%
+    if (length(input$dateTable_rows_selected) == 0) return(NULL)
+    temp_date = data.frame(date = df_date()[input$dateTable_rows_selected,])
+    fu_selected_sub = fu_selected() %>%
+      filter(Date %in% temp_date$date)
+    p = fu_selected_sub %>%
       group_by(side.nerve) %>%
       do(p = spg_plot_param(.)) %>%
-      subplot(nrows = round(length(levels(.$side.nerve))/4), 
+      subplot(nrows = 1, 
               shareY = T, shareX = T, 
               titleX = F, titleY = T) 
     p1 = style(p, traces = 1:7, showlegend = T)
     layout(p1, legend = list(font = list(size = 15)))
+  })
+  
+  feature_table = reactive({
+    if (is.null(df_motor_radial())) return(NULL) 
+    df <- df_motor_radial() %>%
+      select(-cutoff)
+    df_wide = spread(df, key = param, value = value)
+    DML = df_wide %>%
+      group_by(side.nerve) %>%
+      summarize(dml = case_when(
+        is.na(DML) ~ "NA",
+        DML <=100 ~ "NL",
+        (CMAP1 >=100 & DML >110)|(CMAP1 <100 & DML >120) ~ "PD",
+        TRUE ~ "ND"))
+    NCV = df_wide %>%
+      group_by(side.nerve) %>%
+      summarise(ncv = case_when(
+        is.na(NCV1) ~ "NA",
+        NCV1 >100 ~ "NL",
+        (CMAP1 >=50 & NCV1 <90)|(CMAP1 <50 & NCV1 <85) ~ "PD",
+        TRUE ~ "ND"))
+    CB = df_wide %>%
+      group_by(side.nerve) %>%
+      summarize(cb = case_when(
+        is.na(CMAP1)|CMAP1==0 ~ "NA",
+        CMAP2/CMAP1 >=0.5 ~ "NL",
+        CMAP2/CMAP1 <0.5 & CMAP1 >=20 ~ "PD",
+        TRUE ~ "ND"))
+    # exclude the tibial nerve
+    CB$cb[4] = ifelse(CB$cb[4] == "NA", CB$cb[4], "ND") # R.TM
+    CB$cb[5] = ifelse(CB$cb[5] == "NA", CB$cb[5], "ND") # L.TM
+    FL = df_wide %>%
+      group_by(side.nerve) %>%
+      summarize(fl = case_when(
+        is.na(CMAP1) ~ "NA",
+        is.na(FL) & CMAP1 >0 ~ "FA",
+        FL <=100 ~ "NL",
+        FL >120 ~ "PD",
+        TRUE ~ "ND"))
+    df_table = data.frame(rbind(DML$dml, NCV$ncv, CB$cb, FL$fl))
+    colnames(df_table) = df_wide$side.nerve
+    df_table$param = c("DML", "NCV", "CB", "FL")
+    df_table_long = gather(df_table, key = "side.nerve",
+                           value = "feature", R.MM:L.MM) %>%
+      mutate(feature = factor(feature)) %>%
+      mutate(param = factor(param)) %>%
+      mutate(side.nerve = factor(side.nerve, 
+                               levels = c("R.MM", "R.UM", "R.PM", "R.TM", 
+                                          "L.TM", "L.PM", "L.UM", "L.MM")))
+    levels(df_table_long$feature) = list(Normal = "NL",
+                                         Primary_demyelinating = "PD",
+                                         Not_determined = "ND",
+                                         F_absence = "FA",
+                                         Not_available = "NA")
+    levels(df_table_long$param) = list(DML = "DML",
+                                       NCV = "NCV",
+                                       CB = "CB",
+                                       FL = "FL")
+    df_table_long
+  })
+
+  output$hadden_tileView = renderPlot({
+    if (is.null(feature_table())) return(NULL)
+    # Tile view of demyelinating features (Hadden's criteria)
+    temp <- feature_table() %>%
+      group_by(side.nerve) %>%
+      filter(feature == "Primary_demyelinating") %>%
+      summarise(cnt = n()) 
+    p <- ggplot(feature_table(), aes(x=side.nerve, y=param,
+                                   fill = feature)) +
+      geom_tile(color = "black") + theme_minimal() +
+      labs(title = "Hadden's criteria", 
+           subtitle = paste("Number of nerve with at least 1 primary demyelinating features:",
+                            dim(temp)[1], sep = " ")) +
+      theme(axis.text.x = element_text(size = 14, face = "bold"),
+            axis.text.y = element_text(size = 14, face = "bold"),
+            title = element_text(size = 16, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            panel.grid = element_blank(),
+            plot.background = element_blank(),
+            legend.text = element_text(size = 14, face = "bold"))
+    p <- p + scale_fill_manual(
+      values = c("Normal" = "green", "Primary_demyelinating" = "red", 
+                 "Not_determined" = "blue", "F_absence" = "orange", 
+                 "Not_available" = "grey"),
+      name = "")
+    p
   })
 }
 
