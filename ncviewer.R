@@ -78,7 +78,9 @@ ui <- fluidPage(
                  plotlyOutput("fuview")), 
         tabPanel("GBS criteria sets", br(), 
                  plotOutput("hadden_tileView")
-                 )
+                 ), 
+        tabPanel("CIDP", br(),
+                 plotOutput("cidp_tileView"))
       )
     )
   )
@@ -192,7 +194,7 @@ server <- function(input, output) {
                           "DML", "Dur1", "Dur2",
                           "NCV1", "FL")) %>%
       mutate(param = factor(param)) %>%
-      mutate(side.nerve = factor(side.nerve))
+      mutate(side.nerve = factor(side.nerve)) 
     motor_radial
   })
   
@@ -209,7 +211,8 @@ server <- function(input, output) {
       add_trace(r = 100, 
                 theta = ~param, 
                 name = "ULN(LLN)", 
-                line = list(dash = "dot")) %>%
+                line = list(dash = "dot"), 
+                fill = "toself") %>%
       layout(
         polar = list(
           radialaxis = list(
@@ -240,7 +243,8 @@ server <- function(input, output) {
       add_trace(r = 100, 
                 theta = ~side.nerve, 
                 name = "ULN(LLN)",
-                line = list(dash = 'dot'))  %>%
+                line = list(dash = 'dot'), 
+                fill = "toself")  %>%
       layout(
         polar = list(
           radialaxis = list(
@@ -401,6 +405,157 @@ server <- function(input, output) {
       values = c("Normal" = "green", "Primary_demyelinating" = "red", 
                  "Not_determined" = "blue", "F_absence" = "orange", 
                  "Not_available" = "grey"),
+      name = "")
+    p
+  })
+  
+  feature_table_cidp = reactive({
+    if (is.null(df_motor_all())) return(NULL) 
+    df <- df_motor_all() %>%
+      select(-cutoff)
+    df_cidp = spread(df, key = param, value = value)
+    
+    DML = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarize(dml = case_when(
+        is.na(DML) ~ NA, 
+        DML >=150 ~ T, 
+        TRUE ~ F)) 
+    NCV1 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(ncv1 = case_when(
+        is.na(NCV1) ~ NA,
+        NCV1 <=70 ~ T, 
+        TRUE ~ F))  
+    NCV2 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(ncv2 = case_when(
+        is.na(NCV2) ~ NA,
+        NCV2 <=70 ~ T, 
+        TRUE ~ F))  
+    NCV3 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(ncv3 = case_when(
+        is.na(NCV3) ~ NA,
+        NCV3 <=70 ~ T, 
+        TRUE ~ F))  
+    FL = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarize(fl = case_when(
+        is.na(CMAP1) ~ NA,
+        (FL >130 & CMAP1 >=80)|(FL >150 & CMAP1 <80) ~ T, 
+        TRUE ~ F))
+    FA = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarize(fa = case_when(
+        is.na(CMAP1) ~ NA,
+        is.na(FL) & CMAP1 >=20 ~ T, # F-wave absence
+        TRUE ~ F))
+    CB1 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarize(cb1 = case_when(
+        is.na(CMAP1) ~ NA,
+        CMAP1 == 0 ~ NA,
+        CMAP2/CMAP1 <0.5 & CMAP1 >=20 ~ T,
+        TRUE ~ F))
+    CB2 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarize(cb2 = case_when(
+        is.na(CMAP1) ~ NA,
+        CMAP1==0 ~ NA,
+        is.na(CMAP3) ~ NA,
+        CMAP3/CMAP1 <0.5 & CMAP1 >=20 ~ T,
+        TRUE ~ F))
+    CB3 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarize(cb3 = case_when(
+        is.na(CMAP1) ~ NA,
+        CMAP1==0 ~ NA,
+        is.na(CMAP4) ~ NA,
+        CMAP4/CMAP1 <0.5 & CMAP1 >=20 ~ T,
+        TRUE ~ F))
+    TD1 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(td1 = case_when(
+        is.na(CMAP1) ~ NA,
+        CMAP1==0 ~ NA,
+        Dur2/Dur1 >1.3 ~ T,
+        TRUE ~ F))
+    TD2 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(td2 = case_when(
+        is.na(CMAP1) ~ NA,
+        is.na(CMAP3) ~ NA,
+        CMAP1==0 ~ NA,
+        Dur3/Dur1 >1.3 ~ T,
+        TRUE ~ F))
+    TD3 = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(td3 = case_when(
+        is.na(CMAP1) ~ NA,
+        is.na(CMAP4) ~ NA,
+        Dur4/Dur1 >1.3 ~ T,
+        TRUE ~ F))
+    DUR = df_cidp %>%
+      group_by(side.nerve) %>%
+      summarise(dur = case_when(
+        is.na(CMAP1) ~ NA,
+        CMAP1==0 ~ NA,
+        Dur1 >=100 ~ T, 
+        TRUE ~ F))
+    
+    df_cidp_table = data.frame(rbind(DML$dml, 
+                                     NCV1$ncv1, NCV2$ncv2, NCV3$ncv3, 
+                                     FL$fl, FA$fa, 
+                                     CB1$cb1, CB2$cb2, CB3$cb3, 
+                                     TD1$td1, TD2$td2, TD3$td3, 
+                                     DUR$dur))
+    colnames(df_cidp_table) = df_cidp$side.nerve
+    df_cidp_table$param = c("DML", "NCV1", "NCV2", "NCV3", 
+                            "FL", "FA", "CB1", "CB2", "CB3", 
+                            "TD1", "TD2", "TD3", 
+                            "DUR")
+    # to plot Tile view of demyelinating features (CIDP EDX criteria)
+    df_cidp_table_long = gather(df_cidp_table, key = "side.nerve", 
+                                value = "feature", R.MM:L.MM) %>%
+      mutate(param = factor(param)) %>%
+      mutate(side.nerve = factor(side.nerve, 
+                                 levels = c("R.MM", "R.UM", "R.PM", "R.TM", 
+                                            "L.TM", "L.PM", "L.UM", "L.MM")))
+    levels(df_cidp_table_long$param) = list(DML = "DML", 
+                                            NCV1 = "NCV1", 
+                                            NCV2 = "NCV2", 
+                                            NCV3 = "NCV3", 
+                                            FL = "FL",
+                                            FA = "FA",
+                                            CB1 = "CB1", 
+                                            CB2 = "CB2", 
+                                            CB3 = "CB3",
+                                            TD1 = "TD1", 
+                                            TD2 = "TD2", 
+                                            TD3 = "TD3",
+                                            DUR = "DUR"
+    )
+    df_cidp_table_long
+  })
+  
+  output$cidp_tileView = renderPlot({
+    if (is.null(feature_table_cidp())) return(NULL)
+    # Tile view of demyelinating features (Hadden's criteria)
+    p <- ggplot(feature_table_cidp(), aes(x=side.nerve, y=param,
+                                     fill = feature)) +
+      geom_tile(color = "black") + theme_minimal() +
+      labs(title = "2020 PNS/EFNS EDX criteria for CIDP") +
+      theme(axis.text.x = element_text(size = 14, face = "bold"),
+            axis.text.y = element_text(size = 14, face = "bold"),
+            title = element_text(size = 16, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            panel.grid = element_blank(),
+            plot.background = element_blank(),
+            legend.text = element_text(size = 14, face = "bold"))
+    p <- p + scale_fill_manual(
+      values = c("green", "red", "grey"), 
       name = "")
     p
   })
