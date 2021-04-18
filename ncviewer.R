@@ -80,7 +80,8 @@ ui <- fluidPage(
                  plotOutput("hadden_tileView")
                  ), 
         tabPanel("CIDP", br(),
-                 plotOutput("cidp_tileView"))
+                 plotOutput("cidp_tileView")
+        )
       )
     )
   )

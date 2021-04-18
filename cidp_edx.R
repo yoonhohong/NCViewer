@@ -1,0 +1,218 @@
+# CIDP 
+
+setwd("/Users/hong/Dropbox/NCViewer/Dataset")
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+
+df = read_excel("BRM_NCS_2020.xlsx", sheet = 1,
+                col_types = c("text", "text", rep("text", 3), 
+                              rep("numeric", 113))) # age and 112 ncs parameters
+df = df %>%
+  mutate_if(is.numeric, as.integer)
+
+ptTable = df %>% 
+  mutate(Date = as.Date(Date, format = "%Y-%m-%d")) %>%
+  select(Hosp, Date, Name, ID, Sex, Age)
+
+#grep("임혜민", df$Name)
+
+list_out = list()
+
+for (i in 1:dim(df)[1]) {
+  df_cidp = df[i,] %>%
+    gather(key = "side.nerve.param", 
+           value = "value", 
+           c(R.MM.DML:R.TM.FL, L.MM.DML:L.TM.FL)) %>% # select only motor nerve parameters 
+    separate(side.nerve.param, 
+             into = c("side", "nerve", "param"), 
+             sep = "\\.") %>%
+    mutate(side.nerve = paste(side, nerve, sep=".")) %>%
+    mutate(side.nerve = factor(side.nerve, 
+                               levels = 
+                                 c("R.MM", "R.UM", "R.PM", "R.TM", 
+                                   "L.TM", "L.PM", "L.UM", "L.MM"))) %>%
+    filter(param %in% c("CMAP1", "CMAP2", "CMAP3", "CMAP4",  
+                        "DML", "Dur1", "Dur2", "Dur3", "Dur4",
+                        "NCV1", "NCV2", "NCV3", "FL")) %>%
+    mutate(param = factor(param, 
+                          levels = c("CMAP1", "CMAP2", "CMAP3", "CMAP4", 
+                                     "DML", "Dur1", "Dur2", "Dur3", "Dur4", 
+                                     "NCV1", "NCV2", "NCV3", "FL"))) %>%
+    select(side.nerve, param, value)
+  
+  
+  # DML 
+  # df = long data format, Date, side.nerve, param, value and cutoff
+  df_cidp = spread(df_cidp, key = param, value = value)
+  DML = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(dml = case_when(
+      is.na(DML) ~ NA, 
+      DML >=150 ~ T, 
+      TRUE ~ F)) 
+  # Exclude the Median nerve 
+  # DML$dml[1] = ifelse(DML$dml[1] == "NA", DML$dml[1], "not applicable") # R.MM
+  # DML$dml[8] = ifelse(DML$dml[8] == "NA", DML$dml[8], "not applicable") # L.MM
+  
+  NCV1 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(ncv1 = case_when(
+      is.na(NCV1) ~ NA,
+      NCV1 <=70 ~ T, 
+      TRUE ~ F))  
+  NCV2 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(ncv2 = case_when(
+      is.na(NCV2) ~ NA,
+      NCV2 <=70 ~ T, 
+      TRUE ~ F))  
+  NCV3 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(ncv3 = case_when(
+      is.na(NCV3) ~ NA,
+      NCV3 <=70 ~ T, 
+      TRUE ~ F))  
+  
+  FL = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarize(fl = case_when(
+      is.na(CMAP1) ~ NA,
+      (FL >130 & CMAP1 >=80)|(FL >150 & CMAP1 <80) ~ T, 
+      TRUE ~ F))
+  
+  FA = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarize(fa = case_when(
+      is.na(CMAP1) ~ NA,
+      is.na(FL) & CMAP1 >=20 ~ T, # F-wave absence
+      TRUE ~ F))
+  
+  CB1 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarize(cb1 = case_when(
+      is.na(CMAP1) ~ NA,
+      CMAP1 == 0 ~ NA,
+      CMAP2/CMAP1 <0.5 & CMAP1 >=20 ~ T,
+      TRUE ~ F))
+  # Exclude the tibial nerve 
+  # CB$cb[4] = ifelse(CB$cb[4] == "NA", CB$cb[4], "ND") # R.TM
+  # CB$cb[5] = ifelse(CB$cb[5] == "NA", CB$cb[5], "ND") # L.TM
+  CB2 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarize(cb2 = case_when(
+      is.na(CMAP1) ~ NA,
+      CMAP1==0 ~ NA,
+      is.na(CMAP3) ~ NA,
+      CMAP3/CMAP1 <0.5 & CMAP1 >=20 ~ T,
+      TRUE ~ F))
+  CB3 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarize(cb3 = case_when(
+      is.na(CMAP1) ~ NA,
+      CMAP1==0 ~ NA,
+      is.na(CMAP4) ~ NA,
+      CMAP4/CMAP1 <0.5 & CMAP1 >=20 ~ T,
+      TRUE ~ F))
+  
+  TD1 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(td1 = case_when(
+      is.na(CMAP1) ~ NA,
+      CMAP1==0 ~ NA,
+      Dur2/Dur1 >1.3 ~ T,
+      TRUE ~ F))
+  TD2 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(td2 = case_when(
+      is.na(CMAP1) ~ NA,
+      is.na(CMAP3) ~ NA,
+      CMAP1==0 ~ NA,
+      Dur3/Dur1 >1.3 ~ T,
+      TRUE ~ F))
+  TD3 = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(td3 = case_when(
+      is.na(CMAP1) ~ NA,
+      is.na(CMAP4) ~ NA,
+      Dur4/Dur1 >1.3 ~ T,
+      TRUE ~ F))
+  
+  
+  DUR = df_cidp %>%
+    group_by(side.nerve) %>%
+    summarise(dur = case_when(
+      is.na(CMAP1) ~ NA,
+      CMAP1==0 ~ NA,
+      Dur1 >=100 ~ T, 
+      TRUE ~ F))
+  
+  df_cidp_table = data.frame(rbind(DML$dml, 
+                                   NCV1$ncv1, NCV2$ncv2, NCV3$ncv3, 
+                                   FL$fl, FA$fa, 
+                                   CB1$cb1, CB2$cb2, CB3$cb3, 
+                                   TD1$td1, TD2$td2, TD3$td3, 
+                                   DUR$dur))
+  colnames(df_cidp_table) = df_cidp$side.nerve
+  df_cidp_table$param = c("DML", "NCV1", "NCV2", "NCV3", 
+                          "FL", "FA", "CB1", "CB2", "CB3", 
+                          "TD1", "TD2", "TD3", 
+                          "DUR")
+
+  # decision if it fulfills cidp edx criteria 
+  mat = as.matrix(df_cidp_table[,1:8])
+  rownames(mat) = df_cidp_table$param
+  
+  DML = mat[1,]
+  
+  NCV = mat[c(2,3,4),]
+  temp2 = c()
+  for (j in 1:8) {
+    temp2[j] = ifelse(TRUE %in% NCV[,j], 1, 0)
+    temp2[j] = ifelse(all(is.na(NCV[,j])), NA, temp2[j])
+  }
+  NCV = temp2 
+  
+  FL = mat[5,]
+  FA = mat[6,]
+  
+  CB = mat[c(7,8,9),]
+  temp2 = c()
+  for (k in 1:8) {
+    temp2[k] = ifelse(TRUE %in% CB[,k], 1, 0)
+    temp2[k] = ifelse(all(is.na(CB[,k])), NA, temp2[k])
+  }
+  CB = temp2 
+  
+  TD = mat[c(10,11,12),]
+  temp2 = c()
+  for (m in 1:8) {
+    temp2[m] = ifelse(TRUE %in% TD[,m], 1, 0)
+    temp2[m] = ifelse(all(is.na(TD[,m])), NA, temp2[m])
+    }
+  TD = temp2 
+  
+  DUR = mat[13,]
+  
+  temp3 = rbind(DML, NCV, FL, FA, CB, TD, DUR)
+  temp4 = rowSums(temp3, na.rm = T)
+  temp4df = t(data.frame(temp4))
+  
+  list_out[[i]] = cbind(data.frame(ptTable)[i,], temp4df)
+}
+
+temp = list_out[[1]]
+for (i in 2:length(list_out)){
+  temp = rbind(temp, list_out[[i]])
+}
+
+edx_2020 = temp
+
+# write.csv(edx_2020, "BRM_NCS_2020_CIDP_Criteria.csv", 
+#           row.names = F, quote = F, fileEncoding = "UTF-8")
+
+library(xlsx)
+write.xlsx(edx_2020, "BRM_NCS_2020_CIDP_EDX.xlsx", 
+           sheetName = "Sheet1",
+           col.names = T, row.names = F)
