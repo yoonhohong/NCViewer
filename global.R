@@ -118,15 +118,15 @@ lay = function(x) {
 df_motor_radial %>%
   group_by(side.nerve) %>%
   arrange(param) %>%
-  plot_ly(type = 'scatterpolar') %>%
+  plot_ly(type = 'scatterpolar', mode = 'lines+markers') %>%
   add_trace(r = ~value, 
             theta = ~param, 
-            name = ~side.nerve,
-            mode = 'lines+markers') %>%
+            name = ~side.nerve) %>%
   add_trace(r = 100, 
             theta = ~param, 
             name = "ULN(LLN)", 
-            line = list(dash = "dot")) %>%
+            line = list(dash = "dot"), 
+            fill = 'toself') %>%
   lay() 
 
 # Nerve View
@@ -134,17 +134,16 @@ df_motor_radial %>%
 df_motor_radial %>%
   group_by(param) %>%
   arrange(side.nerve) %>%
-  plot_ly(type = 'scatterpolar') %>%
+  plot_ly(type = 'scatterpolar', mode = 'lines+markers') %>%
   add_trace(r = ~value, 
             theta = ~side.nerve, 
-            name = ~param, 
-            mode = 'lines+markers') %>%
+            name = ~param) %>%
   add_trace(r = 100, 
             theta = ~side.nerve, 
             name = "ULN(LLN)",
             line = list(dash = 'dot'), 
             fill = "toself")  %>%
-  lay()
+  lay() 
 
 
 # Hadden's criteria 
